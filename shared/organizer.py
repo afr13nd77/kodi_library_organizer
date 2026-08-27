@@ -393,7 +393,7 @@ def execute_plan(
         # --- Обработка файлов ---
         for op in group.operations:
             current_file += 1
-            filename = os.path.basename(op.source_path)
+            filename = os.path.basename(op.destination_path)
 
             # Progress callback
             if progress_callback is not None:
