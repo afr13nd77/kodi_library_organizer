@@ -130,3 +130,14 @@ class TestEdgeCases:
         result = parse_name("My-Movie-2021-720p")
         assert result.title == "My Movie"
         assert result.year == 2021
+
+    def test_no_year_truncate_at_first_tag(self):
+        result = parse_name("Star.Wars.The.Mandalorian.And.Grogu.720p.rus.LostFilm.TV")
+        assert result.title == "Star Wars The Mandalorian And Grogu"
+        assert result.year is None
+        assert result.clean_folder_name == "Star Wars The Mandalorian And Grogu"
+
+    def test_no_year_no_tags(self):
+        result = parse_name("some_random_movie")
+        assert result.title == "some random movie"
+        assert result.clean_folder_name == "some random movie"

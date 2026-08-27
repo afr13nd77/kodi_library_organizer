@@ -40,7 +40,13 @@ def parse_name(filename: str) -> ParsedName:
     if year is not None:
         title_part = name[:year_match.start()]
     else:
-        title_part = name
+        words = name.split()
+        cut_index = len(words)
+        for i, w in enumerate(words):
+            if w.lower() in QUALITY_TAGS:
+                cut_index = i
+                break
+        title_part = ' '.join(words[:cut_index])
 
     tokens = title_part.split()
     cleaned_tokens = [t for t in tokens if t.lower() not in QUALITY_TAGS]
