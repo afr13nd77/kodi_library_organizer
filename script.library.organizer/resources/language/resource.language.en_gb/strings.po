@@ -126,3 +126,19 @@ msgstr ""
 msgctxt "#30128"
 msgid "Look up movie year in Kodi database when not found in filename"
 msgstr ""
+
+msgctxt "#30315"
+msgid "Recursive directory scan"
+msgstr ""
+
+msgctxt "#30316"
+msgid "Scan subdirectories inside source directory"
+msgstr ""
+
+msgctxt "#30129"
+msgid "Add year to filenames"
+msgstr ""
+
+msgctxt "#30130"
+msgid "Insert year before file extension when missing"
+msgstr ""

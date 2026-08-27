@@ -7,7 +7,7 @@
 
 # Kodi Library Organizer
 
-**Version:** 1.2.0 | **Platform:** Kodi v20 Nexus / v21 Omega | **Language:** Python 3.8 | **License:** MIT
+**Version:** 1.3.0 | **Platform:** Kodi v20 Nexus / v21 Omega | **Language:** Python 3.8 | **License:** MIT
 
 A Kodi addon that reorganizes a flat movie directory into a per-folder structure where each movie gets its own folder with all associated files (subtitles, NFO, artwork). Addon type: `xbmc.python.script`.
 
@@ -17,6 +17,8 @@ A Kodi addon that reorganizes a flat movie directory into a per-folder structure
 - Move or copy mode (configurable)
 - Smart folder naming: "Movie.Name.2014.1080p.mkv" → folder "Movie Name (2014)"
 - Year lookup from Kodi library (JSON-RPC) when year is missing from filename
+- Add year to filenames during move/copy when year is known but missing from the filename
+- Recursive scanning of subdirectories (off by default)
 - Multi-part file support (CD1/CD2, Part1/Part2)
 - Operation preview before execution (dry-run)
 - Path and operation confirmation screens with intuitive button flow
@@ -52,6 +54,8 @@ A Kodi addon that reorganizes a flat movie directory into a per-folder structure
 | operation_mode | Move / Copy | Move |
 | dry_run | Preview only, no execution | Yes |
 | enrich_from_library | Look up year from Kodi library | Yes |
+| rename_files | Add year to filenames during move/copy | Yes |
+| recursive_scan | Recursive subdirectory scanning | No |
 | clean_names | Normalize folder names | Yes |
 | min_file_size_mb | Minimum file size (MB) | 100 |
 | handle_multipart | Group multi-part files | Yes |
@@ -71,7 +75,7 @@ pip install -r requirements.txt
 python -m pytest shared/tests/ script.library.organizer/tests/ -v
 ```
 
-174 tests (154 shared + 20 addon).
+195 tests (175 shared + 20 addon).
 
 ## License
 

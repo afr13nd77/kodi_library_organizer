@@ -45,6 +45,11 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="rename_files" type="boolean" label="30129" help="30130">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
       </group>
     </category>
     <category id="advanced" label="30300" help="">
@@ -62,6 +67,11 @@
         <setting id="handle_multipart" type="boolean" label="30313" help="30314">
           <level>1</level>
           <default>true</default>
+          <control type="toggle"/>
+        </setting>
+        <setting id="recursive_scan" type="boolean" label="30315" help="30316">
+          <level>1</level>
+          <default>false</default>
           <control type="toggle"/>
         </setting>
       </group>

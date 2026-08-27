@@ -241,6 +241,8 @@ def run_organize() -> None:
         handle_multipart = addon.getSettingBool("handle_multipart")
         undo_enabled = addon.getSettingBool("undo_enabled")
         enrich_from_library = addon.getSettingBool("enrich_from_library")
+        rename_files = addon.getSettingBool("rename_files")
+        recursive_scan = addon.getSettingBool("recursive_scan")
 
         mode_label = "Move" if mode == OperationMode.MOVE else "Copy"
         summary = (
@@ -280,7 +282,8 @@ def run_organize() -> None:
         f"run_organize: settings mode={mode.value} dry_run={dry_run} "
         f"clean_names={clean_names} min_size_mb={min_size_mb} "
         f"handle_multipart={handle_multipart} undo_enabled={undo_enabled} "
-        f"enrich_from_library={enrich_from_library}"
+        f"enrich_from_library={enrich_from_library} rename_files={rename_files} "
+        f"recursive_scan={recursive_scan}"
     )
 
     error = validate_paths(source_dir, destination_dir)
@@ -296,6 +299,7 @@ def run_organize() -> None:
     try:
         scan_result: ScanResult = scan_directory(
             source_dir, min_size_bytes, handle_multipart, clean_names,
+            recursive=recursive_scan, destination_dir=destination_dir,
         )
     except Exception as exc:
         dialog.ok("Library Organizer", f"Scan error: {exc}")
@@ -321,7 +325,9 @@ def run_organize() -> None:
 
     # -- 5. Build plan -----------------------------------------------------
     try:
-        plan: OperationPlan = build_plan(scan_result, destination_dir, mode)
+        plan: OperationPlan = build_plan(
+            scan_result, destination_dir, mode, rename_files=rename_files,
+        )
     except Exception as exc:
         dialog.ok("Library Organizer", f"Plan error: {exc}")
         _logger.error(f"run_organize: build_plan raised: {exc}")

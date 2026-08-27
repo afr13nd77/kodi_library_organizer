@@ -422,3 +422,200 @@ class TestLongestPrefixMatch:
                 assert len(group.associated_files) == 1
             elif group.base_name == "Movie":
                 assert len(group.associated_files) == 0
+
+
+# =========================================================================
+# BL-04: Recursive scanning tests
+# =========================================================================
+
+def _create_subdir(parent, name: str) -> str:
+    """Создать поддиректорию. Возвращает путь."""
+    path = os.path.join(str(parent), name)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+class TestRecursiveFindFilesInSubdirs:
+    """AC-01: видеофайлы из подпапок включены в результат при recursive=True."""
+
+    def test_recursive_finds_files_in_subdirs(self, tmp_path):
+        _create_file(tmp_path, "Interstellar.2014.mkv")
+        subdir = _create_subdir(tmp_path, "old_movies")
+        _create_file(subdir, "Matrix.1999.mkv")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=True,
+        )
+
+        assert len(result.groups) == 2
+        names = {g.parsed_name.title for g in result.groups}
+        assert "Interstellar" in names
+        assert "Matrix" in names
+
+
+class TestRecursiveMultilevelDepth:
+    """AC-02: файлы на нескольких уровнях вложенности."""
+
+    def test_recursive_multilevel_depth(self, tmp_path):
+        _create_file(tmp_path, "Movie1.2020.mkv")
+        level1 = _create_subdir(tmp_path, "level1")
+        _create_file(level1, "Movie2.2021.mkv")
+        level2 = _create_subdir(level1, "level2")
+        _create_file(level2, "Movie3.2022.mkv")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=True,
+        )
+
+        assert len(result.groups) == 3
+        years = {g.parsed_name.year for g in result.groups}
+        assert years == {2020, 2021, 2022}
+
+
+class TestNonrecursiveSkipsSubdirs:
+    """AC-03: recursive=False — поведение идентично текущему."""
+
+    def test_nonrecursive_skips_subdirs(self, tmp_path):
+        _create_file(tmp_path, "Interstellar.2014.mkv")
+        subdir = _create_subdir(tmp_path, "old_movies")
+        _create_file(subdir, "Matrix.1999.mkv")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=False,
+        )
+
+        assert len(result.groups) == 1
+        assert result.groups[0].parsed_name.title == "Interstellar"
+
+
+class TestRecursiveAssociatedFilesInSubdir:
+    """AC-04: ассоциированные файлы из подпапки привязываются к видео."""
+
+    def test_recursive_associated_files_in_subdir(self, tmp_path):
+        subdir = _create_subdir(tmp_path, "old_movies")
+        _create_file(subdir, "Matrix.1999.720p.mkv")
+        _create_file(subdir, "Matrix.1999.720p.srt")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=True,
+        )
+
+        assert len(result.groups) == 1
+        group = result.groups[0]
+        assert len(group.video_files) == 1
+        assert len(group.associated_files) == 1
+        assert group.associated_files[0].extension == ".srt"
+
+
+class TestRecursiveExcludesDestinationDir:
+    """AC-05: destination_dir внутри source_dir исключается из результата."""
+
+    def test_recursive_excludes_destination_dir(self, tmp_path):
+        _create_file(tmp_path, "Interstellar.2014.mkv")
+        dest = _create_subdir(tmp_path, "organized")
+        _create_file(dest, "ShouldBeExcluded.2020.mkv")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=True,
+            destination_dir=str(dest),
+        )
+
+        assert len(result.groups) == 1
+        assert result.groups[0].parsed_name.title == "Interstellar"
+
+    def test_recursive_excludes_nested_destination(self, tmp_path):
+        """Destination с подпапками тоже полностью исключается."""
+        _create_file(tmp_path, "Movie1.2020.mkv")
+        dest = _create_subdir(tmp_path, "organized")
+        nested = _create_subdir(dest, "subdir")
+        _create_file(nested, "Movie2.2021.mkv")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=True,
+            destination_dir=str(dest),
+        )
+
+        assert len(result.groups) == 1
+        assert result.groups[0].parsed_name.year == 2020
+
+
+class TestRecursiveEmptySubdirs:
+    """Пустые подпапки не влияют на результат."""
+
+    def test_recursive_empty_subdirs(self, tmp_path):
+        _create_file(tmp_path, "Movie.2020.mkv")
+        _create_subdir(tmp_path, "empty1")
+        _create_subdir(tmp_path, "empty2")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=True,
+        )
+
+        assert len(result.groups) == 1
+
+
+class TestRecursiveFullPathPreserved:
+    """MovieFile.full_path содержит полный путь включая подпапку."""
+
+    def test_full_path_includes_subdir(self, tmp_path):
+        subdir = _create_subdir(tmp_path, "sub")
+        _create_file(subdir, "Movie.2020.mkv")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+            recursive=True,
+        )
+
+        assert len(result.groups) == 1
+        vf = result.groups[0].video_files[0]
+        assert vf.full_path == os.path.join(str(subdir), "Movie.2020.mkv")
+        assert "sub" in vf.full_path
+
+
+class TestRecursiveDefaultOff:
+    """По умолчанию recursive=False для обратной совместимости."""
+
+    def test_default_recursive_false(self, tmp_path):
+        _create_file(tmp_path, "Movie1.mkv")
+        subdir = _create_subdir(tmp_path, "sub")
+        _create_file(subdir, "Movie2.mkv")
+
+        result = scan_directory(
+            source_path=str(tmp_path),
+            min_file_size_bytes=0,
+            handle_multipart=True,
+            clean_names=True,
+        )
+
+        assert len(result.groups) == 1

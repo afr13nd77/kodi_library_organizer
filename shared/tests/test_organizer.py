@@ -13,6 +13,7 @@ from shared.organizer import (
     OperationPlan,
     PlannedGroup,
     PlannedOperation,
+    _add_year_to_filename,
     _find_unique_filename,
     _find_unique_name,
     _format_size,
@@ -847,3 +848,168 @@ class TestExecutePlanMultipleFilesInGroup:
         assert (target / "Interstellar.2014.1080p.mkv").exists()
         assert (target / "Interstellar.2014.1080p.srt").exists()
         assert (target / "Interstellar.2014.1080p.nfo").exists()
+
+
+# =========================================================================
+# Тесты _add_year_to_filename (BL-10)
+# =========================================================================
+
+class TestAddYearToFilename:
+
+    def test_year_added_before_extension(self):
+        result = _add_year_to_filename("Movie.720p.mkv", 2025)
+        assert result == "Movie.720p (2025).mkv"
+
+    def test_year_already_in_name(self):
+        result = _add_year_to_filename("Movie.2024.720p.mkv", 2024)
+        assert result == "Movie.2024.720p.mkv"
+
+    def test_no_extension(self):
+        result = _add_year_to_filename("Movie", 2025)
+        assert result == "Movie (2025)"
+
+    def test_subtitle_file(self):
+        result = _add_year_to_filename("Movie.720p.srt", 2025)
+        assert result == "Movie.720p (2025).srt"
+
+    def test_multipart_cd1(self):
+        result = _add_year_to_filename("Movie.720p.CD1.mkv", 2025)
+        assert result == "Movie.720p.CD1 (2025).mkv"
+
+    def test_multipart_cd2(self):
+        result = _add_year_to_filename("Movie.720p.CD2.mkv", 2025)
+        assert result == "Movie.720p.CD2 (2025).mkv"
+
+
+# =========================================================================
+# Тесты build_plan с rename_files (BL-10)
+# =========================================================================
+
+class TestBuildPlanRenameFiles:
+
+    def test_rename_files_true_adds_year(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Film A",
+                "year": 2020,
+                "videos": [("FilmA.720p.mkv", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(
+            scan_result, str(dest_dir), OperationMode.MOVE, rename_files=True,
+        )
+
+        dest_filename = os.path.basename(plan.groups[0].operations[0].destination_path)
+        assert dest_filename == "FilmA.720p (2020).mkv"
+
+    def test_rename_files_false_keeps_original(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Film A",
+                "year": 2020,
+                "videos": [("FilmA.720p.mkv", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(
+            scan_result, str(dest_dir), OperationMode.MOVE, rename_files=False,
+        )
+
+        dest_filename = os.path.basename(plan.groups[0].operations[0].destination_path)
+        assert dest_filename == "FilmA.720p.mkv"
+
+    def test_rename_files_true_no_year_keeps_original(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Unknown Movie",
+                "year": None,
+                "videos": [("unknown_movie.mkv", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(
+            scan_result, str(dest_dir), OperationMode.MOVE, rename_files=True,
+        )
+
+        dest_filename = os.path.basename(plan.groups[0].operations[0].destination_path)
+        assert dest_filename == "unknown_movie.mkv"
+
+    def test_rename_files_associated_gets_year(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Film A",
+                "year": 2020,
+                "videos": [("FilmA.720p.mkv", 100)],
+                "assoc": [("FilmA.720p.srt", 50)],
+            },
+        ])
+
+        plan = build_plan(
+            scan_result, str(dest_dir), OperationMode.MOVE, rename_files=True,
+        )
+
+        ops = plan.groups[0].operations
+        video_dest = os.path.basename(ops[0].destination_path)
+        srt_dest = os.path.basename(ops[1].destination_path)
+        assert video_dest == "FilmA.720p (2020).mkv"
+        assert srt_dest == "FilmA.720p (2020).srt"
+
+    def test_rename_files_year_already_in_filename(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Film A",
+                "year": 2020,
+                "videos": [("FilmA.2020.720p.mkv", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(
+            scan_result, str(dest_dir), OperationMode.MOVE, rename_files=True,
+        )
+
+        dest_filename = os.path.basename(plan.groups[0].operations[0].destination_path)
+        assert dest_filename == "FilmA.2020.720p.mkv"
+
+    def test_rename_files_default_is_false(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Film A",
+                "year": 2020,
+                "videos": [("FilmA.720p.mkv", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(scan_result, str(dest_dir), OperationMode.MOVE)
+
+        dest_filename = os.path.basename(plan.groups[0].operations[0].destination_path)
+        assert dest_filename == "FilmA.720p.mkv"

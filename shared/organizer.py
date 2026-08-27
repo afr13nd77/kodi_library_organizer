@@ -127,6 +127,15 @@ def _find_unique_name(path: str) -> str:
         counter += 1
 
 
+def _add_year_to_filename(filename: str, year: int) -> str:
+    """Insert year before file extension if not already present."""
+    name, ext = os.path.splitext(filename)
+    year_str = str(year)
+    if year_str in name:
+        return filename
+    return f"{name} ({year}){ext}"
+
+
 def _find_unique_filename(path: str) -> str:
     """Находит уникальное имя файла, добавляя _2, _3, ... перед расширением."""
     base, ext = os.path.splitext(path)
@@ -147,6 +156,8 @@ def build_plan(
     scan_result: ScanResult,
     destination_dir: str,
     mode: OperationMode,
+    *,
+    rename_files: bool = False,
 ) -> OperationPlan:
     """Строит план операций на основе результатов сканирования.
 
@@ -154,13 +165,14 @@ def build_plan(
         scan_result: Результат scan_directory().
         destination_dir: Путь к целевой директории.
         mode: Режим операции (MOVE/COPY).
+        rename_files: Добавлять год в имя файла при наличии.
 
     Returns:
         OperationPlan с группами плановых операций.
     """
     _logger.info(
         f"Построение плана: mode={mode.value}, destination={destination_dir}, "
-        f"groups={len(scan_result.groups)}"
+        f"groups={len(scan_result.groups)}, rename_files={rename_files}"
     )
 
     planned_groups: List[PlannedGroup] = []
@@ -173,9 +185,14 @@ def build_plan(
 
         operations: List[PlannedOperation] = []
 
+        year = group.parsed_name.year
+
         # Видеофайлы
         for vf in group.video_files:
-            dest_path = os.path.join(folder_path, vf.filename)
+            dest_name = vf.filename
+            if rename_files and year is not None:
+                dest_name = _add_year_to_filename(dest_name, year)
+            dest_path = os.path.join(folder_path, dest_name)
             operations.append(PlannedOperation(
                 source_path=vf.full_path,
                 destination_path=dest_path,
@@ -185,7 +202,10 @@ def build_plan(
 
         # Ассоциированные файлы
         for af in group.associated_files:
-            dest_path = os.path.join(folder_path, af.filename)
+            dest_name = af.filename
+            if rename_files and year is not None:
+                dest_name = _add_year_to_filename(dest_name, year)
+            dest_path = os.path.join(folder_path, dest_name)
             operations.append(PlannedOperation(
                 source_path=af.full_path,
                 destination_path=dest_path,

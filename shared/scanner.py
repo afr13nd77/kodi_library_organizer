@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 try:
     from file_patterns import ASSOCIATED_EXTENSIONS, MULTIPART_PATTERN, VIDEO_EXTENSIONS
@@ -52,11 +52,60 @@ class ScanResult:
     total_size_bytes: int                # Суммарный размер файлов в groups
 
 
+def _collect_files_flat(source_path: str) -> Optional[List[str]]:
+    """Собирает файлы из верхнего уровня директории (без рекурсии)."""
+    try:
+        entries = os.listdir(source_path)
+    except OSError as exc:
+        _logger.error(f"Ошибка чтения директории {source_path}: {exc}")
+        return None
+
+    result: List[str] = []
+    for entry in entries:
+        full_path = os.path.join(source_path, entry)
+        if os.path.isdir(full_path):
+            _logger.debug(f"Пропущена директория: {entry}")
+            continue
+        result.append(full_path)
+
+    return result
+
+
+def _collect_files_recursive(
+    source_path: str,
+    destination_dir: str,
+) -> Optional[List[str]]:
+    """Собирает файлы рекурсивно из всех вложенных директорий."""
+    dest_norm = ""
+    if destination_dir:
+        dest_norm = os.path.normcase(os.path.normpath(destination_dir))
+
+    result: List[str] = []
+
+    try:
+        for dirpath, dirnames, filenames in os.walk(source_path):
+            if dest_norm:
+                dir_norm = os.path.normcase(os.path.normpath(dirpath))
+                if dir_norm == dest_norm or dir_norm.startswith(dest_norm + os.sep):
+                    dirnames.clear()
+                    _logger.debug(f"Исключена destination директория: {dirpath}")
+                    continue
+            for fname in filenames:
+                result.append(os.path.join(dirpath, fname))
+    except OSError as exc:
+        _logger.error(f"Ошибка рекурсивного обхода {source_path}: {exc}")
+        return None
+
+    return result
+
+
 def scan_directory(
     source_path: str,
     min_file_size_bytes: int,
     handle_multipart: bool,
     clean_names: bool,
+    recursive: bool = False,
+    destination_dir: str = "",
 ) -> ScanResult:
     """Сканирует директорию и группирует файлы.
 
@@ -65,32 +114,31 @@ def scan_directory(
         min_file_size_bytes: Минимальный размер видеофайла в байтах.
         handle_multipart: Группировать ли multi-part файлы (CD1, CD2).
         clean_names: Использовать ли нормализованные имена из name_parser.
+        recursive: Сканировать вложенные директории.
+        destination_dir: Путь назначения (исключается при рекурсивном сканировании).
 
     Returns:
         ScanResult с группами, пропущенными и непривязанными файлами.
     """
-    _logger.info(f"Начало сканирования директории: {source_path}")
+    _logger.info(f"Начало сканирования директории: {source_path} (recursive={recursive})")
 
-    # 1. Листинг файлов (плоский, без рекурсии)
     video_files: Dict[str, MovieFile] = {}
     associated_files: List[MovieFile] = []
     unmatched_files: List[MovieFile] = []
 
-    try:
-        entries = os.listdir(source_path)
-    except OSError as exc:
-        _logger.error(f"Ошибка чтения директории {source_path}: {exc}")
+    # 1. Сбор файлов: рекурсивный или плоский режим
+    if recursive:
+        all_file_paths = _collect_files_recursive(source_path, destination_dir)
+    else:
+        all_file_paths = _collect_files_flat(source_path)
+
+    if all_file_paths is None:
         return ScanResult(groups=[], skipped_files=[], unmatched_files=[], total_size_bytes=0)
 
-    _logger.info(f"Найдено записей в директории: {len(entries)}")
+    _logger.info(f"Найдено файлов: {len(all_file_paths)}")
 
-    for entry in entries:
-        full_path = os.path.join(source_path, entry)
-
-        # Пропускать директории
-        if os.path.isdir(full_path):
-            _logger.debug(f"Пропущена директория: {entry}")
-            continue
+    for full_path in all_file_paths:
+        entry = os.path.basename(full_path)
 
         # Пропускать символьные ссылки
         if os.path.islink(full_path):
