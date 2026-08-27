@@ -10,9 +10,14 @@ import os
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
-from .file_patterns import ASSOCIATED_EXTENSIONS, MULTIPART_PATTERN, VIDEO_EXTENSIONS
-from .logger import Logger
-from .name_parser import ParsedName, parse_name
+try:
+    from file_patterns import ASSOCIATED_EXTENSIONS, MULTIPART_PATTERN, VIDEO_EXTENSIONS
+    from logger import Logger
+    from name_parser import ParsedName, parse_name
+except ImportError:
+    from .file_patterns import ASSOCIATED_EXTENSIONS, MULTIPART_PATTERN, VIDEO_EXTENSIONS
+    from .logger import Logger
+    from .name_parser import ParsedName, parse_name
 
 _logger = Logger(debug_enabled=False)
 

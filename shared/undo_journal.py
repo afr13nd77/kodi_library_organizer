@@ -11,7 +11,10 @@ import shutil
 from dataclasses import asdict, dataclass, field
 from typing import Callable, List, Optional
 
-from .logger import Logger
+try:
+    from logger import Logger
+except ImportError:
+    from .logger import Logger
 
 _logger = Logger()
 

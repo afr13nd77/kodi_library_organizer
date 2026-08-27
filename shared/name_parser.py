@@ -3,7 +3,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .file_patterns import QUALITY_TAGS
+try:
+    from file_patterns import QUALITY_TAGS
+except ImportError:
+    from .file_patterns import QUALITY_TAGS
 
 _YEAR_RE = re.compile(r'\b((?:19|20)\d{2})\b')
 _SANITIZE_RE = re.compile(r'[<>:"/\\|?*]')

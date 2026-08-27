@@ -13,10 +13,16 @@ from datetime import datetime
 from enum import Enum
 from typing import Callable, List, Optional
 
-from .logger import Logger
-from .name_parser import ParsedName
-from .scanner import MovieFile, ScanResult
-from .undo_journal import UndoEntry, UndoJournal, save_journal
+try:
+    from logger import Logger
+    from name_parser import ParsedName
+    from scanner import MovieFile, ScanResult
+    from undo_journal import UndoEntry, UndoJournal, save_journal
+except ImportError:
+    from .logger import Logger
+    from .name_parser import ParsedName
+    from .scanner import MovieFile, ScanResult
+    from .undo_journal import UndoEntry, UndoJournal, save_journal
 
 _logger = Logger(debug_enabled=False)
 
