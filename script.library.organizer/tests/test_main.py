@@ -4,6 +4,7 @@ All Kodi modules (xbmc, xbmcgui, xbmcaddon, xbmcvfs) are mocked.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from unittest.mock import MagicMock, patch
@@ -519,3 +520,221 @@ class TestRunUndo:
         msg = dialog.ok.call_args[0][1]
         assert "Undo complete" in msg
         assert "1" in msg
+
+
+# ===========================================================================
+# _enrich_years_from_library tests
+# ===========================================================================
+
+class TestEnrichYears:
+    """Tests for the _enrich_years_from_library helper."""
+
+    def test_enrich_year_from_library(self, mock_kodi, tmp_path):
+        """File without year, found in Kodi library -> year enriched."""
+        main_mod = _import_main()
+        xbmc = mock_kodi["xbmc"]
+
+        video_path = str(tmp_path / "MovieNoYear.720p.mkv")
+
+        from shared.name_parser import ParsedName
+        from shared.scanner import MovieFile, MovieGroup, ScanResult
+
+        group = MovieGroup(
+            video_files=[MovieFile(
+                filename="MovieNoYear.720p.mkv",
+                full_path=video_path,
+                size_bytes=200 * 1024 * 1024,
+                extension=".mkv",
+            )],
+            associated_files=[],
+            parsed_name=ParsedName(
+                title="MovieNoYear",
+                year=None,
+                clean_folder_name="MovieNoYear",
+                raw_name="MovieNoYear.720p",
+            ),
+            base_name="MovieNoYear.720p",
+        )
+        scan_result = ScanResult(
+            groups=[group],
+            skipped_files=[],
+            unmatched_files=[],
+            total_size_bytes=200 * 1024 * 1024,
+        )
+
+        xbmc.executeJSONRPC.return_value = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "movies": [{
+                    "movieid": 1,
+                    "label": "MovieNoYear",
+                    "year": 2025,
+                    "file": video_path,
+                }]
+            }
+        })
+
+        count = main_mod._enrich_years_from_library(scan_result)
+
+        assert count == 1
+        assert scan_result.groups[0].parsed_name.year == 2025
+        assert scan_result.groups[0].parsed_name.clean_folder_name == "MovieNoYear (2025)"
+
+    def test_enrich_no_match(self, mock_kodi, tmp_path):
+        """File without year, NOT in Kodi library -> year stays None."""
+        main_mod = _import_main()
+        xbmc = mock_kodi["xbmc"]
+
+        from shared.name_parser import ParsedName
+        from shared.scanner import MovieFile, MovieGroup, ScanResult
+
+        group = MovieGroup(
+            video_files=[MovieFile(
+                filename="Unknown.720p.mkv",
+                full_path=str(tmp_path / "Unknown.720p.mkv"),
+                size_bytes=200 * 1024 * 1024,
+                extension=".mkv",
+            )],
+            associated_files=[],
+            parsed_name=ParsedName(
+                title="Unknown",
+                year=None,
+                clean_folder_name="Unknown",
+                raw_name="Unknown.720p",
+            ),
+            base_name="Unknown.720p",
+        )
+        scan_result = ScanResult(
+            groups=[group],
+            skipped_files=[],
+            unmatched_files=[],
+            total_size_bytes=200 * 1024 * 1024,
+        )
+
+        xbmc.executeJSONRPC.return_value = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "movies": [{
+                    "movieid": 1,
+                    "label": "Other",
+                    "year": 2020,
+                    "file": "C:\\other.mkv",
+                }]
+            }
+        })
+
+        count = main_mod._enrich_years_from_library(scan_result)
+        assert count == 0
+        assert scan_result.groups[0].parsed_name.year is None
+
+    def test_enrich_disabled_skips_jsonrpc(self, mock_kodi, tmp_path):
+        """enrich_from_library=False -> executeJSONRPC not called."""
+        main_mod = _import_main()
+        addon = _get_addon(mock_kodi)
+        dialog = _get_dialog(mock_kodi)
+        xbmc = mock_kodi["xbmc"]
+
+        src = str(tmp_path / "source")
+        dst = str(tmp_path / "dest")
+        os.makedirs(src)
+        os.makedirs(dst)
+
+        video_file = os.path.join(src, "MovieNoYear.720p.mkv")
+        with open(video_file, "wb") as f:
+            f.truncate(200 * 1024 * 1024)
+
+        addon.getSetting.side_effect = lambda sid: {
+            "source_directory": src,
+            "destination_directory": dst,
+        }.get(sid, "")
+        addon.getSettingBool.side_effect = lambda sid: {
+            "debug_logging": False,
+            "dry_run": True,
+            "clean_names": True,
+            "handle_multipart": True,
+            "undo_enabled": True,
+            "enrich_from_library": False,
+        }.get(sid, False)
+        addon.getSettingInt.side_effect = lambda sid: {
+            "operation_mode": 0,
+            "min_file_size_mb": 100,
+        }.get(sid, 0)
+
+        dialog.yesnocustom.side_effect = [1, 1]
+
+        main_mod.run_organize()
+        xbmc.executeJSONRPC.assert_not_called()
+
+    def test_enrich_jsonrpc_error_continues(self, mock_kodi):
+        """JSON-RPC throws exception -> enrich returns 0, no crash."""
+        main_mod = _import_main()
+        xbmc = mock_kodi["xbmc"]
+
+        from shared.name_parser import ParsedName
+        from shared.scanner import MovieFile, MovieGroup, ScanResult
+
+        group = MovieGroup(
+            video_files=[MovieFile(
+                filename="M.mkv",
+                full_path="C:\\M.mkv",
+                size_bytes=100,
+                extension=".mkv",
+            )],
+            associated_files=[],
+            parsed_name=ParsedName(
+                title="M",
+                year=None,
+                clean_folder_name="M",
+                raw_name="M",
+            ),
+            base_name="M",
+        )
+        scan_result = ScanResult(
+            groups=[group],
+            skipped_files=[],
+            unmatched_files=[],
+            total_size_bytes=100,
+        )
+
+        xbmc.executeJSONRPC.side_effect = RuntimeError("Connection failed")
+
+        count = main_mod._enrich_years_from_library(scan_result)
+        assert count == 0
+        assert scan_result.groups[0].parsed_name.year is None
+
+    def test_enrich_skips_groups_with_year(self, mock_kodi):
+        """Groups that already have year are not processed."""
+        main_mod = _import_main()
+        xbmc = mock_kodi["xbmc"]
+
+        from shared.name_parser import ParsedName
+        from shared.scanner import MovieFile, MovieGroup, ScanResult
+
+        group = MovieGroup(
+            video_files=[MovieFile(
+                filename="M.2020.mkv",
+                full_path="C:\\M.2020.mkv",
+                size_bytes=100,
+                extension=".mkv",
+            )],
+            associated_files=[],
+            parsed_name=ParsedName(
+                title="M",
+                year=2020,
+                clean_folder_name="M (2020)",
+                raw_name="M.2020",
+            ),
+            base_name="M.2020",
+        )
+        scan_result = ScanResult(
+            groups=[group],
+            skipped_files=[],
+            unmatched_files=[],
+            total_size_bytes=100,
+        )
+
+        count = main_mod._enrich_years_from_library(scan_result)
+        assert count == 0
+        xbmc.executeJSONRPC.assert_not_called()

@@ -6,12 +6,14 @@ All heavy lifting is done by scanner, organizer, and undo_journal.
 from __future__ import annotations
 
 import datetime
+import json
 import os
 
 # Shared modules live next to main.py after build_zip.py assembly.
 # In the dev tree they are importable as a package via shared.*.
 try:
     from scanner import ScanResult, scan_directory
+    from name_parser import ParsedName
     from organizer import (
         ConflictResolution,
         FileConflictResolution,
@@ -34,6 +36,7 @@ try:
     from logger import Logger
 except ImportError:
     from shared.scanner import ScanResult, scan_directory
+    from shared.name_parser import ParsedName
     from shared.organizer import (
         ConflictResolution,
         FileConflictResolution,
@@ -73,6 +76,73 @@ def _format_size(size_bytes: int) -> str:
             return f"{value:.1f} {unit}"
         value /= 1024
     return f"{value:.1f} PB"
+
+
+def _enrich_years_from_library(scan_result: ScanResult) -> int:
+    """Look up movie years from Kodi library via JSON-RPC for groups missing year."""
+    import xbmc
+
+    needs_year = [g for g in scan_result.groups if g.parsed_name.year is None]
+    if not needs_year:
+        _logger.info("enrich: all groups already have year, skipping JSON-RPC")
+        return 0
+
+    _logger.info(f"enrich: {len(needs_year)} groups need year lookup")
+
+    try:
+        request = json.dumps({
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetMovies",
+            "params": {"properties": ["year", "file"]},
+            "id": 1,
+        })
+        raw = xbmc.executeJSONRPC(request)
+        data = json.loads(raw)
+    except Exception as exc:
+        _logger.warning(f"enrich: JSON-RPC error: {exc}")
+        return 0
+
+    movies = data.get("result", {}).get("movies", [])
+    if not movies:
+        _logger.info("enrich: library empty or no movies found")
+        return 0
+
+    lib_map: dict[str, int] = {}
+    for m in movies:
+        year = m.get("year", 0)
+        file_path = m.get("file", "")
+        if year and file_path:
+            key = os.path.normcase(os.path.normpath(file_path))
+            lib_map[key] = year
+
+    _logger.info(f"enrich: loaded {len(lib_map)} movies from library")
+
+    enriched = 0
+    for group in needs_year:
+        matched_year = None
+        for vf in group.video_files:
+            key = os.path.normcase(os.path.normpath(vf.full_path))
+            if key in lib_map:
+                matched_year = lib_map[key]
+                break
+
+        if matched_year:
+            old = group.parsed_name
+            folder_name = f"{old.title} ({matched_year})"
+            if len(folder_name) > 200:
+                folder_name = folder_name[:200]
+            group.parsed_name = ParsedName(
+                title=old.title,
+                year=matched_year,
+                clean_folder_name=folder_name,
+                raw_name=old.raw_name,
+            )
+            enriched += 1
+            _logger.info(f"enrich: year set for '{old.title}': {matched_year} from Kodi library")
+        else:
+            _logger.debug(f"enrich: no library match for '{group.video_files[0].filename}'")
+
+    return enriched
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +240,7 @@ def run_organize() -> None:
         min_size_mb = addon.getSettingInt("min_file_size_mb")
         handle_multipart = addon.getSettingBool("handle_multipart")
         undo_enabled = addon.getSettingBool("undo_enabled")
+        enrich_from_library = addon.getSettingBool("enrich_from_library")
 
         mode_label = "Move" if mode == OperationMode.MOVE else "Copy"
         summary = (
@@ -208,7 +279,8 @@ def run_organize() -> None:
     _logger.info(
         f"run_organize: settings mode={mode.value} dry_run={dry_run} "
         f"clean_names={clean_names} min_size_mb={min_size_mb} "
-        f"handle_multipart={handle_multipart} undo_enabled={undo_enabled}"
+        f"handle_multipart={handle_multipart} undo_enabled={undo_enabled} "
+        f"enrich_from_library={enrich_from_library}"
     )
 
     error = validate_paths(source_dir, destination_dir)
@@ -239,6 +311,13 @@ def run_organize() -> None:
         return
 
     _logger.info(f"run_organize: found {len(scan_result.groups)} groups")
+
+    # -- 4b. Enrich years from Kodi library --------------------------------
+    if enrich_from_library:
+        enriched_count = _enrich_years_from_library(scan_result)
+        _logger.info(f"run_organize: enriched {enriched_count} groups with year from Kodi library")
+    else:
+        _logger.info("run_organize: enrich_from_library disabled, skipping")
 
     # -- 5. Build plan -----------------------------------------------------
     try:

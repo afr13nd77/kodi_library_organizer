@@ -118,3 +118,11 @@ msgstr ""
 msgctxt "#30332"
 msgid "Enable verbose debug logging"
 msgstr ""
+
+msgctxt "#30127"
+msgid "Enrich year from Kodi library"
+msgstr ""
+
+msgctxt "#30128"
+msgid "Look up movie year in Kodi database when not found in filename"
+msgstr ""

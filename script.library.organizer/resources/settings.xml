@@ -31,6 +31,11 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="enrich_from_library" type="boolean" label="30127" help="30128">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
       </group>
     </category>
     <category id="naming" label="30200" help="">

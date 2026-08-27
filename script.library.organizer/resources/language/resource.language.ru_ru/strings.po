@@ -118,3 +118,11 @@ msgstr "Подробное логирование"
 msgctxt "#30332"
 msgid "Enable verbose debug logging"
 msgstr "Включить подробные отладочные логи"
+
+msgctxt "#30127"
+msgid "Enrich year from Kodi library"
+msgstr "Подставлять год из библиотеки Kodi"
+
+msgctxt "#30128"
+msgid "Look up movie year in Kodi database when not found in filename"
+msgstr "Искать год фильма в базе Kodi, если не найден в имени файла"
