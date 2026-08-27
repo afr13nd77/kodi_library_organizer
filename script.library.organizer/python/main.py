@@ -412,7 +412,7 @@ def run_organize() -> None:
         if progress.iscanceled():
             return False
         percent = int(current * 100 / total) if total > 0 else 0
-        progress.update(percent, f"File {current} of {total}", filename)
+        progress.update(percent, f"File {current} of {total}\n{filename}")
         return True
 
     def folder_conflict_callback(folder_name: str) -> ConflictResolution:
@@ -558,7 +558,7 @@ def run_undo() -> None:
         if progress.iscanceled():
             return False
         percent = int(current * 100 / total) if total > 0 else 0
-        progress.update(percent, f"File {current} of {total}", filename)
+        progress.update(percent, f"File {current} of {total}\n{filename}")
         return True
 
     _logger.info("run_undo: executing undo")
