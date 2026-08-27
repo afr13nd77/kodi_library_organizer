@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.zip
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.claude/.current-session-id

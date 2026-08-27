@@ -1,0 +1,120 @@
+# script.library.organizer language file
+# Addon Name: Library Organizer
+msgid ""
+msgstr ""
+
+msgctxt "#30100"
+msgid "General"
+msgstr "Основные"
+
+msgctxt "#30110"
+msgid "Directories"
+msgstr "Директории"
+
+msgctxt "#30111"
+msgid "Source directory"
+msgstr "Директория-источник"
+
+msgctxt "#30112"
+msgid "Directory with movies in flat structure"
+msgstr "Директория с фильмами в плоской структуре"
+
+msgctxt "#30113"
+msgid "Destination directory"
+msgstr "Директория назначения"
+
+msgctxt "#30114"
+msgid "Directory where organized folders will be created"
+msgstr "Директория, куда будут созданы папки с фильмами"
+
+msgctxt "#30120"
+msgid "Operation"
+msgstr "Операция"
+
+msgctxt "#30121"
+msgid "Mode"
+msgstr "Режим"
+
+msgctxt "#30122"
+msgid "Move files or copy them"
+msgstr "Переместить файлы или скопировать"
+
+msgctxt "#30123"
+msgid "Move"
+msgstr "Переместить"
+
+msgctxt "#30124"
+msgid "Copy"
+msgstr "Скопировать"
+
+msgctxt "#30125"
+msgid "Dry run (preview only)"
+msgstr "Пробный запуск (только превью)"
+
+msgctxt "#30126"
+msgid "Show planned operations without executing"
+msgstr "Показать план без выполнения"
+
+msgctxt "#30200"
+msgid "Naming"
+msgstr "Именование"
+
+msgctxt "#30210"
+msgid "Folder naming"
+msgstr "Именование папок"
+
+msgctxt "#30211"
+msgid "Clean folder names"
+msgstr "Нормализовать имена папок"
+
+msgctxt "#30212"
+msgid "Extract movie title and year from filename"
+msgstr "Извлекать название и год из имени файла"
+
+msgctxt "#30300"
+msgid "Advanced"
+msgstr "Расширенные"
+
+msgctxt "#30310"
+msgid "Filters"
+msgstr "Фильтры"
+
+msgctxt "#30311"
+msgid "Minimum file size (MB)"
+msgstr "Минимальный размер файла (МБ)"
+
+msgctxt "#30312"
+msgid "Files smaller than this will be skipped"
+msgstr "Файлы меньше этого размера будут пропущены"
+
+msgctxt "#30313"
+msgid "Handle multi-part files"
+msgstr "Обработка multi-part файлов"
+
+msgctxt "#30314"
+msgid "Group CD1/CD2, Part1/Part2 into one folder"
+msgstr "Группировать CD1/CD2, Part1/Part2 в одну папку"
+
+msgctxt "#30320"
+msgid "Undo"
+msgstr "Отмена"
+
+msgctxt "#30321"
+msgid "Enable undo journal"
+msgstr "Включить журнал отмены"
+
+msgctxt "#30322"
+msgid "Save operation log for possible rollback"
+msgstr "Сохранять журнал для возможного отката"
+
+msgctxt "#30330"
+msgid "Debug"
+msgstr "Отладка"
+
+msgctxt "#30331"
+msgid "Debug logging"
+msgstr "Подробное логирование"
+
+msgctxt "#30332"
+msgid "Enable verbose debug logging"
+msgstr "Включить подробные отладочные логи"

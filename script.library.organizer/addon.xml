@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="script.library.organizer"
+       name="Library Organizer"
+       version="1.0.0"
+       provider-name="kodi_library_organizer">
+  <requires>
+    <import addon="xbmc.python" version="3.0.1"/>
+  </requires>
+  <extension point="xbmc.python.script"
+             library="python/main.py">
+    <provides>executable</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <reuselanguageinvoker>false</reuselanguageinvoker>
+    <summary lang="en_GB">Organize movie library into per-folder structure</summary>
+    <summary lang="ru_RU">Организация фильмотеки в структуру по папкам</summary>
+    <description lang="en_GB">Reorganize flat movie directory into per-folder structure. Each movie gets its own folder with associated files (subtitles, NFO, artwork). Supports dry-run preview, undo, multi-part files, and smart name parsing.</description>
+    <description lang="ru_RU">Реорганизация плоской директории с фильмами в структуру по папкам. Каждый фильм получает свою папку с субтитрами, NFO и артворком. Поддержка превью, отката, multi-part файлов и парсинга имён.</description>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.jpg</fanart>
+    </assets>
+    <platform>all</platform>
+    <license>MIT</license>
+  </extension>
+</addon>
