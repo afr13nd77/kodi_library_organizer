@@ -78,6 +78,27 @@ def _format_size(size_bytes: int) -> str:
     return f"{value:.1f} PB"
 
 
+# Settings added after v1.2.0 that need explicit defaults on upgrade
+_SETTING_DEFAULTS: dict[str, str] = {
+    "rename_files": "true",
+    "recursive_scan": "false",
+}
+
+
+def _ensure_setting_defaults(addon) -> None:
+    """Initialize defaults for settings added in newer versions.
+
+    Kodi caches user settings from previous addon versions.
+    New settings not present in the cached file return empty string
+    from getSetting(), causing getSettingBool() to return false
+    instead of the intended default.
+    """
+    for key, default in _SETTING_DEFAULTS.items():
+        if addon.getSetting(key) == "":
+            addon.setSetting(key, default)
+            _logger.info(f"_ensure_setting_defaults: initialized {key}={default}")
+
+
 def _enrich_years_from_library(scan_result: ScanResult) -> int:
     """Look up movie years from Kodi library via JSON-RPC for groups missing year."""
     import xbmc
@@ -206,6 +227,7 @@ def run_organize() -> None:
     addon = xbmcaddon.Addon()
     global _logger
     _logger = Logger(debug_enabled=addon.getSettingBool("debug_logging"))
+    _ensure_setting_defaults(addon)
     _logger.info("run_organize: started")
 
     dialog = xbmcgui.Dialog()
@@ -495,6 +517,7 @@ def run_undo() -> None:
     addon = xbmcaddon.Addon()
     global _logger
     _logger = Logger(debug_enabled=addon.getSettingBool("debug_logging"))
+    _ensure_setting_defaults(addon)
     _logger.info("run_undo: started")
 
     dialog = xbmcgui.Dialog()
