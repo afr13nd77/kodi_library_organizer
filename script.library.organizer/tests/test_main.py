@@ -175,6 +175,9 @@ class TestRunOrganize:
             "min_file_size_mb": 100,
         }.get(sid, 0)
 
+        # Continue past path confirmation screen
+        dialog.yesnocustom.return_value = 1
+
         main_mod.run_organize()
 
         # dialog.ok must have been called with an error message
@@ -209,6 +212,9 @@ class TestRunOrganize:
             "operation_mode": 0,
             "min_file_size_mb": 0,
         }.get(sid, 0)
+
+        # Continue past path confirmation screen
+        dialog.yesnocustom.return_value = 1
 
         main_mod.run_organize()
 
@@ -248,9 +254,12 @@ class TestRunOrganize:
             "min_file_size_mb": 100,
         }.get(sid, 0)
 
+        # yesnocustom called twice: path confirm -> Continue(1), op confirm -> Start(1)
+        dialog.yesnocustom.side_effect = [1, 1]
+
         with patch.object(main_mod, "execute_plan") as mock_exec:
             main_mod.run_organize()
-            # Preview shown
+            # Preview shown (dry_run shows textviewer)
             dialog.textviewer.assert_called_once()
             # execute_plan NOT called because dry_run=True
             mock_exec.assert_not_called()
@@ -270,7 +279,7 @@ class TestRunOrganize:
             mock_scan.assert_not_called()
 
     def test_user_cancels_confirmation(self, mock_kodi, tmp_path):
-        """User says No to confirmation -> no execution."""
+        """User cancels at operation confirmation -> no execution."""
         main_mod = _import_main()
         addon = _get_addon(mock_kodi)
         dialog = _get_dialog(mock_kodi)
@@ -300,13 +309,130 @@ class TestRunOrganize:
             "min_file_size_mb": 100,
         }.get(sid, 0)
 
-        # User clicks No on confirmation
-        dialog.yesno.return_value = False
+        # path confirm -> Continue(1), op confirm -> Cancel(0)
+        dialog.yesnocustom.side_effect = [1, 0]
 
         with patch.object(main_mod, "execute_plan") as mock_exec:
             main_mod.run_organize()
-            dialog.textviewer.assert_called_once()
             mock_exec.assert_not_called()
+
+    def test_path_confirm_change_reopens_settings(self, mock_kodi, tmp_path):
+        """User clicks Change on path confirmation -> Settings opens, then Continue."""
+        main_mod = _import_main()
+        addon = _get_addon(mock_kodi)
+        dialog = _get_dialog(mock_kodi)
+
+        src = str(tmp_path / "source")
+        dst = str(tmp_path / "dest")
+        os.makedirs(src)
+        os.makedirs(dst)
+
+        addon.getSetting.side_effect = lambda sid: {
+            "source_directory": src,
+            "destination_directory": dst,
+        }.get(sid, "")
+        addon.getSettingBool.side_effect = lambda sid: {
+            "debug_logging": False,
+            "dry_run": False,
+            "clean_names": True,
+            "handle_multipart": True,
+            "undo_enabled": True,
+        }.get(sid, False)
+        addon.getSettingInt.side_effect = lambda sid: {
+            "operation_mode": 0,
+            "min_file_size_mb": 100,
+        }.get(sid, 0)
+
+        # First call: Change(2), second call: Continue(1), then cancel at op confirm
+        dialog.yesnocustom.side_effect = [2, 1, 0]
+
+        with patch.object(main_mod, "scan_directory") as mock_scan:
+            mock_scan.return_value = MagicMock(groups=[])
+            main_mod.run_organize()
+
+        addon.openSettings.assert_called_once()
+
+    def test_operation_confirm_details_shows_preview(self, mock_kodi, tmp_path):
+        """User clicks Details on operation confirmation -> textviewer shown, then Start."""
+        main_mod = _import_main()
+        addon = _get_addon(mock_kodi)
+        dialog = _get_dialog(mock_kodi)
+
+        src = str(tmp_path / "source")
+        dst = str(tmp_path / "dest")
+        os.makedirs(src)
+        os.makedirs(dst)
+
+        video_file = os.path.join(src, "TestMovie.2020.mkv")
+        with open(video_file, "wb") as f:
+            f.truncate(200 * 1024 * 1024)
+
+        addon.getSetting.side_effect = lambda sid: {
+            "source_directory": src,
+            "destination_directory": dst,
+        }.get(sid, "")
+        addon.getSettingBool.side_effect = lambda sid: {
+            "debug_logging": False,
+            "dry_run": False,
+            "clean_names": True,
+            "handle_multipart": True,
+            "undo_enabled": True,
+        }.get(sid, False)
+        addon.getSettingInt.side_effect = lambda sid: {
+            "operation_mode": 0,
+            "min_file_size_mb": 100,
+        }.get(sid, 0)
+
+        # path confirm -> Continue(1), op confirm -> Details(2), then Start(1)
+        dialog.yesnocustom.side_effect = [1, 2, 1]
+
+        xbmcgui = mock_kodi["xbmcgui"]
+        xbmcvfs = mock_kodi["xbmcvfs"]
+        xbmcvfs.translatePath.return_value = str(tmp_path / "undo")
+        xbmcvfs.mkdirs.return_value = True
+        progress_mock = xbmcgui.DialogProgress.return_value
+        progress_mock.iscanceled.return_value = False
+
+        with patch.object(main_mod, "execute_plan") as mock_exec:
+            mock_exec.return_value = MagicMock(
+                was_cancelled=False,
+                success_count=1,
+                error_count=0,
+                skipped_count=0,
+                total_count=1,
+            )
+            main_mod.run_organize()
+
+        dialog.textviewer.assert_called_once()
+        assert "Operation preview" in dialog.textviewer.call_args[0][0]
+
+    def test_path_confirm_cancel_exits(self, mock_kodi):
+        """User cancels at path confirmation -> no scan runs."""
+        main_mod = _import_main()
+        addon = _get_addon(mock_kodi)
+        dialog = _get_dialog(mock_kodi)
+
+        addon.getSetting.side_effect = lambda sid: {
+            "source_directory": "/some/source",
+            "destination_directory": "/some/dest",
+        }.get(sid, "")
+        addon.getSettingBool.side_effect = lambda sid: {
+            "debug_logging": False,
+            "dry_run": False,
+            "clean_names": True,
+            "handle_multipart": True,
+            "undo_enabled": True,
+        }.get(sid, False)
+        addon.getSettingInt.side_effect = lambda sid: {
+            "operation_mode": 0,
+            "min_file_size_mb": 100,
+        }.get(sid, 0)
+
+        dialog.yesnocustom.return_value = 0  # Cancel
+
+        with patch.object(main_mod, "scan_directory") as mock_scan:
+            main_mod.run_organize()
+            mock_scan.assert_not_called()
 
 
 # ===========================================================================

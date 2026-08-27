@@ -62,6 +62,20 @@ _logger = Logger(debug_enabled=False)
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _format_size(size_bytes: int) -> str:
+    """Return human-readable file size string."""
+    value = float(size_bytes)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if abs(value) < 1024:
+            return f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} PB"
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
@@ -114,7 +128,7 @@ def show_main_menu() -> None:
 # ---------------------------------------------------------------------------
 
 def run_organize() -> None:
-    """Full organize flow: settings -> folder pick -> scan -> preview -> execute."""
+    """Full organize flow: settings -> path confirm -> scan -> op confirm -> execute."""
     import xbmcgui
     import xbmcaddon
     import xbmcvfs
@@ -126,24 +140,10 @@ def run_organize() -> None:
 
     dialog = xbmcgui.Dialog()
 
-    # -- 1. Read settings ------------------------------------------------
+    # -- 1. Read settings + prompt for dirs if empty -----------------------
     source_dir = addon.getSetting("source_directory")
     destination_dir = addon.getSetting("destination_directory")
-    mode_int = addon.getSettingInt("operation_mode")
-    mode = OperationMode.MOVE if mode_int == 0 else OperationMode.COPY
-    dry_run = addon.getSettingBool("dry_run")
-    clean_names = addon.getSettingBool("clean_names")
-    min_size_mb = addon.getSettingInt("min_file_size_mb")
-    handle_multipart = addon.getSettingBool("handle_multipart")
-    undo_enabled = addon.getSettingBool("undo_enabled")
 
-    _logger.info(
-        f"run_organize: settings mode={mode.value} dry_run={dry_run} "
-        f"clean_names={clean_names} min_size_mb={min_size_mb} "
-        f"handle_multipart={handle_multipart} undo_enabled={undo_enabled}"
-    )
-
-    # -- 2. Prompt for dirs if not configured ----------------------------
     if not source_dir:
         source_dir = dialog.browseSingle(0, "Select source directory", "files")
         if not source_dir:
@@ -158,14 +158,66 @@ def run_organize() -> None:
             _logger.info("run_organize: user cancelled destination dir selection")
             return
 
-    # -- 3. Validate paths -----------------------------------------------
+    # -- 2. Path confirmation loop -----------------------------------------
+    while True:
+        # Re-read settings each iteration (user may have changed them in Settings)
+        source_dir = addon.getSetting("source_directory") or source_dir
+        destination_dir = addon.getSetting("destination_directory") or destination_dir
+        mode_int = addon.getSettingInt("operation_mode")
+        mode = OperationMode.MOVE if mode_int == 0 else OperationMode.COPY
+        dry_run = addon.getSettingBool("dry_run")
+        clean_names = addon.getSettingBool("clean_names")
+        min_size_mb = addon.getSettingInt("min_file_size_mb")
+        handle_multipart = addon.getSettingBool("handle_multipart")
+        undo_enabled = addon.getSettingBool("undo_enabled")
+
+        mode_label = "Move" if mode == OperationMode.MOVE else "Copy"
+        summary = (
+            f"Source: {source_dir}\n"
+            f"Destination: {destination_dir}\n"
+            f"Mode: {mode_label}"
+        )
+        if dry_run:
+            summary += "\n[Dry run enabled]"
+
+        _logger.info(
+            f"run_organize: showing path confirmation. "
+            f"source={source_dir}, dest={destination_dir}, mode={mode.value}"
+        )
+
+        choice = dialog.yesnocustom(
+            "Library Organizer",
+            summary,
+            customlabel="Change",
+            nolabel="Cancel",
+            yeslabel="Continue",
+        )
+        _logger.info(f"run_organize: path confirmation choice={choice}")
+
+        if choice == 1:  # Continue
+            break
+        elif choice == 2:  # Change -> open Settings
+            _logger.info("run_organize: user opened settings to change paths")
+            addon.openSettings()
+            continue
+        else:  # Cancel (0) or Escape (-1)
+            _logger.info("run_organize: user cancelled at path confirmation")
+            return
+
+    # -- 3. Validate paths -------------------------------------------------
+    _logger.info(
+        f"run_organize: settings mode={mode.value} dry_run={dry_run} "
+        f"clean_names={clean_names} min_size_mb={min_size_mb} "
+        f"handle_multipart={handle_multipart} undo_enabled={undo_enabled}"
+    )
+
     error = validate_paths(source_dir, destination_dir)
     if error:
         dialog.ok("Library Organizer", error)
         _logger.error(f"run_organize: validation failed: {error}")
         return
 
-    # -- 4. Scan ----------------------------------------------------------
+    # -- 4. Scan -----------------------------------------------------------
     _logger.info(f"run_organize: scanning {source_dir}")
     min_size_bytes = min_size_mb * 1024 * 1024
 
@@ -188,7 +240,7 @@ def run_organize() -> None:
 
     _logger.info(f"run_organize: found {len(scan_result.groups)} groups")
 
-    # -- 5. Build plan ----------------------------------------------------
+    # -- 5. Build plan -----------------------------------------------------
     try:
         plan: OperationPlan = build_plan(scan_result, destination_dir, mode)
     except Exception as exc:
@@ -196,27 +248,45 @@ def run_organize() -> None:
         _logger.error(f"run_organize: build_plan raised: {exc}")
         return
 
-    # -- 6. Show preview --------------------------------------------------
     preview_text = format_preview(plan)
-    _logger.info("run_organize: showing preview")
-    dialog.textviewer("Operation preview", preview_text)
 
-    # -- 7. Confirmation --------------------------------------------------
-    if dry_run:
-        _logger.info("run_organize: dry_run mode, finished after preview")
-        return
-
+    # -- 6. Operation confirmation loop ------------------------------------
     mode_label = "move" if mode == OperationMode.MOVE else "copy"
-    confirmed = dialog.yesno(
-        "Library Organizer",
-        f"Found {len(plan.groups)} movies. "
-        f"Proceed with {mode_label}?",
-    )
-    if not confirmed:
-        _logger.info("run_organize: user cancelled after preview")
+    while True:
+        op_summary = (
+            f"Movies found: {len(plan.groups)}\n"
+            f"Files to {mode_label}: {plan.total_files}\n"
+            f"Total size: {_format_size(plan.total_size_bytes)}"
+        )
+
+        _logger.info("run_organize: showing operation confirmation")
+
+        choice = dialog.yesnocustom(
+            "Library Organizer",
+            op_summary,
+            customlabel="Details",
+            nolabel="Cancel",
+            yeslabel="Start",
+        )
+        _logger.info(f"run_organize: operation confirmation choice={choice}")
+
+        if choice == 1:  # Start
+            break
+        elif choice == 2:  # Details -> show preview, then loop back
+            _logger.info("run_organize: user requested operation details")
+            dialog.textviewer("Operation preview", preview_text)
+            continue
+        else:  # Cancel (0) or Escape (-1)
+            _logger.info("run_organize: user cancelled after preview")
+            return
+
+    # -- 7. Dry run -> show preview and exit --------------------------------
+    if dry_run:
+        _logger.info("run_organize: dry_run mode, showing preview")
+        dialog.textviewer("Operation preview (dry run)", preview_text)
         return
 
-    # -- 8. Disk space check for COPY ------------------------------------
+    # -- 8. Disk space check for COPY --------------------------------------
     if mode == OperationMode.COPY:
         if not check_disk_space(destination_dir, plan.total_size_bytes):
             dialog.ok(
@@ -226,7 +296,7 @@ def run_organize() -> None:
             _logger.error("run_organize: insufficient disk space")
             return
 
-    # -- 9. Execute with progress ----------------------------------------
+    # -- 9. Execute with progress ------------------------------------------
     progress = xbmcgui.DialogProgress()
     progress.create("Library Organizer", "Preparing...")
     _logger.info("run_organize: executing plan")
