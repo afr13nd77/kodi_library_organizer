@@ -1,8 +1,9 @@
 # Kodi Library Organizer — Индекс проекта
 
-**Версия:** 1.0.0 (MVP завершён)
+**Версия:** 1.2.0
 **Дата создания:** 27.08.2026
 **Дата релиза v1.0.0:** 27.08.2026
+**Последнее обновление:** 27.08.2026
 
 ## Описание
 
@@ -15,7 +16,7 @@ Kodi-аддон для реорганизации фильмотеки из пл
 | Язык | Python 3.8 (встроен в Kodi v20) |
 | Платформа | Kodi v20 Nexus / v21 Omega |
 | Тип аддона | `xbmc.python.script` (программа) |
-| CI/CD | GitHub Actions (планируется) |
+| CI/CD | GitHub Actions (lint → test → build → release) |
 | Линтер | ruff (target py38, line-length 120) |
 | Тесты | pytest |
 
@@ -49,7 +50,7 @@ kodi_library_organizer/
 └── README.md                          # Описание проекта
 ```
 
-**Статус:** v1.0.0 MVP released (164 тестов пройдено, CI/CD настроена).
+**Статус:** v1.2.0 (174 теста, CI/CD настроена, GitHub Actions).
 
 ## Зависимости
 
