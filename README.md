@@ -1,5 +1,7 @@
 [![CI](https://github.com/afr13nd77/kodi_library_organizer/actions/workflows/ci.yml/badge.svg)](https://github.com/afr13nd77/kodi_library_organizer/actions/workflows/ci.yml)
 
+[English version](readme_en.md)
+
 # Kodi Library Organizer
 
 Kodi-аддон для реорганизации фильмотеки из плоской структуры (все файлы в одной директории) в per-folder структуру (каждый фильм в своей папке). Тип: `xbmc.python.script`.
