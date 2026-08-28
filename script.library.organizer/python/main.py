@@ -295,9 +295,18 @@ def run_organize() -> None:
 
         if choice == 1:  # Continue
             break
-        elif choice == 2:  # Change -> open Settings
-            _logger.info("run_organize: user opened settings to change paths")
-            addon.openSettings()
+        elif choice == 2:  # Change -> re-select directories
+            _logger.info("run_organize: user chose to change directories")
+            new_source = dialog.browseSingle(0, "Select source directory", "files", source_dir)
+            if new_source:
+                source_dir = new_source
+                addon.setSetting("source_directory", source_dir)
+                _logger.info(f"run_organize: updated source_directory={source_dir}")
+            new_dest = dialog.browseSingle(0, "Select destination directory", "files", destination_dir)
+            if new_dest:
+                destination_dir = new_dest
+                addon.setSetting("destination_directory", destination_dir)
+                _logger.info(f"run_organize: updated destination_directory={destination_dir}")
             continue
         else:  # Cancel (0) or Escape (-1)
             _logger.info("run_organize: user cancelled at path confirmation")

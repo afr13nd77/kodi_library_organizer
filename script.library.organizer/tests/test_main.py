@@ -317,16 +317,20 @@ class TestRunOrganize:
             main_mod.run_organize()
             mock_exec.assert_not_called()
 
-    def test_path_confirm_change_reopens_settings(self, mock_kodi, tmp_path):
-        """User clicks Change on path confirmation -> Settings opens, then Continue."""
+    def test_path_confirm_change_reopens_browse(self, mock_kodi, tmp_path):
+        """User clicks Change on path confirmation -> browse dialogs shown, then Continue."""
         main_mod = _import_main()
         addon = _get_addon(mock_kodi)
         dialog = _get_dialog(mock_kodi)
 
         src = str(tmp_path / "source")
         dst = str(tmp_path / "dest")
+        new_src = str(tmp_path / "new_source")
+        new_dst = str(tmp_path / "new_dest")
         os.makedirs(src)
         os.makedirs(dst)
+        os.makedirs(new_src)
+        os.makedirs(new_dst)
 
         addon.getSetting.side_effect = lambda sid: {
             "source_directory": src,
@@ -346,12 +350,16 @@ class TestRunOrganize:
 
         # First call: Change(2), second call: Continue(1), then cancel at op confirm
         dialog.yesnocustom.side_effect = [2, 1, 0]
+        # browseSingle returns new paths when Change is clicked
+        dialog.browseSingle.side_effect = [new_src, new_dst]
 
         with patch.object(main_mod, "scan_directory") as mock_scan:
             mock_scan.return_value = MagicMock(groups=[])
             main_mod.run_organize()
 
-        addon.openSettings.assert_called_once()
+        assert dialog.browseSingle.call_count == 2
+        addon.setSetting.assert_any_call("source_directory", new_src)
+        addon.setSetting.assert_any_call("destination_directory", new_dst)
 
     def test_operation_confirm_details_shows_preview(self, mock_kodi, tmp_path):
         """User clicks Details on operation confirmation -> textviewer shown, then Start."""
