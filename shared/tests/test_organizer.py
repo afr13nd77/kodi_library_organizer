@@ -1013,3 +1013,80 @@ class TestBuildPlanRenameFiles:
 
         dest_filename = os.path.basename(plan.groups[0].operations[0].destination_path)
         assert dest_filename == "FilmA.720p.mkv"
+
+
+class TestBuildPlanNormalize:
+    """Tests for build_plan(normalize_filenames=...)."""
+
+    def test_normalize_cleans_video_filename(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Movie Name",
+                "year": None,
+                "videos": [("Movie.Name.720p.BluRay.x264.mp4", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(scan_result, str(dest_dir), OperationMode.COPY, normalize_filenames=True)
+        assert len(plan.groups) == 1
+        op = plan.groups[0].operations[0]
+        assert os.path.basename(op.destination_path) == "Movie Name.mp4"
+
+    def test_normalize_false_keeps_original(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Movie Name",
+                "year": None,
+                "videos": [("Movie.Name.720p.BluRay.x264.mp4", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(scan_result, str(dest_dir), OperationMode.COPY, normalize_filenames=False)
+        op = plan.groups[0].operations[0]
+        assert os.path.basename(op.destination_path) == "Movie.Name.720p.BluRay.x264.mp4"
+
+    def test_normalize_plus_rename_adds_year(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Movie Name",
+                "year": 2024,
+                "videos": [("Movie.Name.2024.720p.BluRay.x264.mp4", 100)],
+                "assoc": [],
+            },
+        ])
+
+        plan = build_plan(scan_result, str(dest_dir), OperationMode.COPY, normalize_filenames=True, rename_files=True)
+        op = plan.groups[0].operations[0]
+        assert os.path.basename(op.destination_path) == "Movie Name (2024).mp4"
+
+    def test_normalize_associated_files(self, tmp_path):
+        source_dir = tmp_path / "source"
+        dest_dir = tmp_path / "dest"
+        source_dir.mkdir()
+
+        scan_result = _make_scan_result(source_dir, [
+            {
+                "name": "Movie Name",
+                "year": None,
+                "videos": [("Movie.Name.720p.mp4", 100)],
+                "assoc": [("Movie.Name.720p.srt", 1)],
+            },
+        ])
+
+        plan = build_plan(scan_result, str(dest_dir), OperationMode.COPY, normalize_filenames=True)
+        assoc_op = plan.groups[0].operations[1]
+        assert os.path.basename(assoc_op.destination_path) == "Movie Name.srt"

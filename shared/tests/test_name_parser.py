@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from shared.name_parser import ParsedName, parse_name
+from shared.name_parser import ParsedName, parse_name, normalize_filename
 
 
 class TestParseNameTable:
@@ -141,3 +141,27 @@ class TestEdgeCases:
         result = parse_name("some_random_movie")
         assert result.title == "some random movie"
         assert result.clean_folder_name == "some random movie"
+
+
+class TestNormalizeFilename:
+    """Tests for normalize_filename()."""
+
+    def test_dirty_name_cleaned(self):
+        result = normalize_filename("Movie.Name.720p.BluRay.x264.mp4")
+        assert result == "Movie Name.mp4"
+
+    def test_clean_name_unchanged(self):
+        result = normalize_filename("Movie Name.mp4")
+        assert result == "Movie Name.mp4"
+
+    def test_with_year_in_name(self):
+        result = normalize_filename("Movie.Name.2024.720p.BluRay.mp4")
+        assert result == "Movie Name.mp4"
+
+    def test_preserves_extension(self):
+        result = normalize_filename("Movie.Name.720p.srt")
+        assert result == "Movie Name.srt"
+
+    def test_empty_title_returns_original(self):
+        result = normalize_filename("720p.mp4")
+        assert result.endswith(".mp4")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 
@@ -77,3 +78,12 @@ def parse_name(filename: str) -> ParsedName:
         clean_folder_name=clean_folder_name,
         raw_name=raw_name,
     )
+
+
+def normalize_filename(filename: str) -> str:
+    """Normalize a filename using parse_name logic, preserving extension."""
+    name, ext = os.path.splitext(filename)
+    parsed = parse_name(name)
+    if not parsed.title.strip():
+        return filename
+    return f"{parsed.title}{ext}"

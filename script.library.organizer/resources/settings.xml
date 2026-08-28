@@ -36,6 +36,11 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="auto_scan_library" type="boolean" label="30133" help="30134">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
       </group>
     </category>
     <category id="naming" label="30200" help="">
@@ -46,6 +51,11 @@
           <control type="toggle"/>
         </setting>
         <setting id="rename_files" type="boolean" label="30129" help="30130">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
+        <setting id="normalize_filenames" type="boolean" label="30131" help="30132">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>

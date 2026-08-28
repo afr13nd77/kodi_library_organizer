@@ -142,3 +142,19 @@ msgstr "Добавлять год в имена файлов"
 msgctxt "#30130"
 msgid "Insert year before file extension when missing"
 msgstr "Вставлять год перед расширением, если отсутствует"
+
+msgctxt "#30131"
+msgid "Normalize filenames"
+msgstr "Нормализовать имена файлов"
+
+msgctxt "#30132"
+msgid "Clean quality tags and separators from filenames during move/copy"
+msgstr "Удалять теги качества и разделители из имён файлов при переносе/копировании"
+
+msgctxt "#30133"
+msgid "Update library after organize"
+msgstr "Обновить библиотеку после организации"
+
+msgctxt "#30134"
+msgid "Trigger Kodi library scan after files are moved/copied"
+msgstr "Запустить сканирование библиотеки Kodi после переноса/копирования файлов"

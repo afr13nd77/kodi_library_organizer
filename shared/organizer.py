@@ -15,12 +15,12 @@ from typing import Callable, List, Optional
 
 try:
     from logger import Logger
-    from name_parser import ParsedName
+    from name_parser import ParsedName, normalize_filename
     from scanner import MovieFile, ScanResult
     from undo_journal import UndoEntry, UndoJournal, save_journal
 except ImportError:
     from .logger import Logger
-    from .name_parser import ParsedName
+    from .name_parser import ParsedName, normalize_filename
     from .scanner import MovieFile, ScanResult
     from .undo_journal import UndoEntry, UndoJournal, save_journal
 
@@ -158,6 +158,7 @@ def build_plan(
     mode: OperationMode,
     *,
     rename_files: bool = False,
+    normalize_filenames: bool = False,
 ) -> OperationPlan:
     """Строит план операций на основе результатов сканирования.
 
@@ -172,7 +173,8 @@ def build_plan(
     """
     _logger.info(
         f"Построение плана: mode={mode.value}, destination={destination_dir}, "
-        f"groups={len(scan_result.groups)}, rename_files={rename_files}"
+        f"groups={len(scan_result.groups)}, rename_files={rename_files}, "
+        f"normalize_filenames={normalize_filenames}"
     )
 
     planned_groups: List[PlannedGroup] = []
@@ -190,6 +192,8 @@ def build_plan(
         # Видеофайлы
         for vf in group.video_files:
             dest_name = vf.filename
+            if normalize_filenames:
+                dest_name = normalize_filename(dest_name)
             if rename_files and year is not None:
                 dest_name = _add_year_to_filename(dest_name, year)
             dest_path = os.path.join(folder_path, dest_name)
@@ -203,6 +207,8 @@ def build_plan(
         # Ассоциированные файлы
         for af in group.associated_files:
             dest_name = af.filename
+            if normalize_filenames:
+                dest_name = normalize_filename(dest_name)
             if rename_files and year is not None:
                 dest_name = _add_year_to_filename(dest_name, year)
             dest_path = os.path.join(folder_path, dest_name)

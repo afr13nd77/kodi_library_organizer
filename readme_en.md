@@ -18,6 +18,8 @@ A Kodi addon that reorganizes a flat movie directory into a per-folder structure
 - Smart folder naming: "Movie.Name.2014.1080p.mkv" → folder "Movie Name (2014)"
 - Year lookup from Kodi library (JSON-RPC) when year is missing from filename
 - Add year to filenames during move/copy when year is known but missing from the filename
+- Filename normalization: remove quality tags and separators during move/copy
+- Auto-update Kodi library after organize (VideoLibrary.Scan)
 - Recursive scanning of subdirectories (off by default)
 - Multi-part file support (CD1/CD2, Part1/Part2)
 - Operation preview before execution (dry-run)
@@ -55,6 +57,8 @@ A Kodi addon that reorganizes a flat movie directory into a per-folder structure
 | dry_run | Preview only, no execution | Yes |
 | enrich_from_library | Look up year from Kodi library | Yes |
 | rename_files | Add year to filenames during move/copy | Yes |
+| normalize_filenames | Clean quality tags and separators from filenames | Yes |
+| auto_scan_library | Update Kodi library after organize | Yes |
 | recursive_scan | Recursive subdirectory scanning | No |
 | clean_names | Normalize folder names | Yes |
 | min_file_size_mb | Minimum file size (MB) | 100 |

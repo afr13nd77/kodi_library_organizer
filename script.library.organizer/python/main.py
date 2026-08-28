@@ -81,7 +81,9 @@ def _format_size(size_bytes: int) -> str:
 # Settings added after v1.2.0 that need explicit defaults on upgrade
 _SETTING_DEFAULTS: dict[str, str] = {
     "rename_files": "true",
+    "normalize_filenames": "true",
     "recursive_scan": "false",
+    "auto_scan_library": "true",
 }
 
 
@@ -97,6 +99,28 @@ def _ensure_setting_defaults(addon) -> None:
         if addon.getSetting(key) == "":
             addon.setSetting(key, default)
             _logger.info(f"_ensure_setting_defaults: initialized {key}={default}")
+
+
+def _trigger_library_scan() -> None:
+    """Trigger Kodi VideoLibrary.Scan via JSON-RPC."""
+    try:
+        import xbmc
+        response = xbmc.executeJSONRPC(
+            '{"jsonrpc":"2.0","method":"VideoLibrary.Scan","id":1}'
+        )
+        _logger.info(f"_trigger_library_scan: response={response}")
+    except Exception as exc:
+        _logger.warning(f"_trigger_library_scan: failed: {exc}")
+        try:
+            import xbmcgui
+            xbmcgui.Dialog().notification(
+                "Library Organizer",
+                "Library scan failed, update manually",
+                xbmcgui.NOTIFICATION_WARNING,
+                3000,
+            )
+        except Exception:
+            pass
 
 
 def _enrich_years_from_library(scan_result: ScanResult) -> int:
@@ -268,7 +292,9 @@ def run_organize() -> None:
         undo_enabled = addon.getSettingBool("undo_enabled")
         enrich_from_library = addon.getSettingBool("enrich_from_library")
         rename_files = addon.getSettingBool("rename_files")
+        normalize_filenames = addon.getSettingBool("normalize_filenames")
         recursive_scan = addon.getSettingBool("recursive_scan")
+        auto_scan_library = addon.getSettingBool("auto_scan_library")
 
         mode_label = "Move" if mode == OperationMode.MOVE else "Copy"
         summary = (
@@ -318,7 +344,8 @@ def run_organize() -> None:
         f"clean_names={clean_names} min_size_mb={min_size_mb} "
         f"handle_multipart={handle_multipart} undo_enabled={undo_enabled} "
         f"enrich_from_library={enrich_from_library} rename_files={rename_files} "
-        f"recursive_scan={recursive_scan}"
+        f"normalize_filenames={normalize_filenames} recursive_scan={recursive_scan} "
+        f"auto_scan_library={auto_scan_library}"
     )
 
     error = validate_paths(source_dir, destination_dir)
@@ -361,7 +388,9 @@ def run_organize() -> None:
     # -- 5. Build plan -----------------------------------------------------
     try:
         plan: OperationPlan = build_plan(
-            scan_result, destination_dir, mode, rename_files=rename_files,
+            scan_result, destination_dir, mode,
+            rename_files=rename_files,
+            normalize_filenames=normalize_filenames,
         )
     except Exception as exc:
         dialog.ok("Library Organizer", f"Plan error: {exc}")
@@ -515,6 +544,10 @@ def run_organize() -> None:
         f"success={result.success_count}, errors={result.error_count}, "
         f"skipped={result.skipped_count}"
     )
+
+    if auto_scan_library and not dry_run:
+        _trigger_library_scan()
+        _logger.info("run_organize: library scan triggered after organize")
 
 
 # ---------------------------------------------------------------------------
