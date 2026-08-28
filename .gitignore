@@ -9,3 +9,5 @@ build/
 .venv/
 venv/
 .claude/.current-session-id
+/docs/
+.coverage
