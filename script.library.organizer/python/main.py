@@ -241,6 +241,8 @@ def run_organize() -> None:
         if not source_dir:
             _logger.info("run_organize: user cancelled source dir selection")
             return
+        addon.setSetting("source_directory", source_dir)
+        _logger.info(f"run_organize: saved source_directory={source_dir}")
 
     if not destination_dir:
         destination_dir = dialog.browseSingle(
@@ -249,6 +251,8 @@ def run_organize() -> None:
         if not destination_dir:
             _logger.info("run_organize: user cancelled destination dir selection")
             return
+        addon.setSetting("destination_directory", destination_dir)
+        _logger.info(f"run_organize: saved destination_directory={destination_dir}")
 
     # -- 2. Path confirmation loop -----------------------------------------
     while True:
